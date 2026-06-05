@@ -179,7 +179,6 @@ ROT       = "#c0392b"
 GRUEN     = "#2d7a52"
 ORANGE    = "#e8792f"
 GRAU      = "#cccccc"
-MIXED     = [BLAU, ORANGE, GRUEN, "#7c3aed", "#888880", "#f0a060", "#6ab88a"]
 
 def style(fig, height=380):
     fig.update_layout(
@@ -201,10 +200,10 @@ def style(fig, height=380):
 # ── DATEN LADEN ──────────────────────────────────────────────
 @st.cache_data
 def lade_daten():
-    df         = pd.read_csv("online_retail_cleaned.csv", dtype={"Customer ID": str})
-    rfm        = pd.read_csv("rfm_segments.csv",          dtype={"Customer ID": str})
-    paare      = pd.read_csv("top_pairs.csv")
-    sonder     = pd.read_csv("sonderposten.csv")
+    df     = pd.read_csv("online_retail_cleaned.csv.gz", dtype={"Customer ID": str})
+    rfm    = pd.read_csv("rfm_segments.csv",             dtype={"Customer ID": str})
+    paare  = pd.read_csv("top_pairs.csv")
+    sonder = pd.read_csv("sonderposten.csv")
     df["InvoiceDate"] = pd.to_datetime(df["InvoiceDate"])
     return df, rfm, paare, sonder
 
@@ -263,8 +262,9 @@ with f3:
             [T["alle_kunden"], T["top10_kunden"]],
             label_visibility="collapsed")
     with fc2:
-        st.markdown(f"<p style='font-size:10px;font-weight:600;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;margin-bottom:4px;'>{T['kunden_suche']} (5-{'stellig z.B. 17841' if sprache == 'DE' else 'digit for example 17841'})</p>", unsafe_allow_html=True)
-        kunden_suche = st.text_input("suche", placeholder="z.B. 17841", label_visibility="collapsed", max_chars=5)
+        hint = "5-stellig z.B. 17841" if sprache == "DE" else "5-digit e.g. 17841"
+        st.markdown(f"<p style='font-size:10px;font-weight:600;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;margin-bottom:4px;'>{T['kunden_suche']} ({hint})</p>", unsafe_allow_html=True)
+        kunden_suche = st.text_input("suche", placeholder="z.B. 17841" if sprache == "DE" else "e.g. 17841", label_visibility="collapsed", max_chars=5)
         if kunden_suche and (not kunden_suche.isdigit() or len(kunden_suche) != 5):
             st.error("⚠️ Bitte eine gültige 5-stellige Kunden-ID eingeben" if sprache == "DE" else "⚠️ Please enter a valid 5-digit customer ID")
             kunden_suche = ""
@@ -584,11 +584,8 @@ sonder_alle = (
     .reset_index()
 )
 
-# Top 3 positiv und Top 3 negativ
 top3_positiv = sonder_alle.sort_values("Betrag", ascending=False).head(3)
 top3_negativ = sonder_alle.sort_values("Betrag", ascending=True).head(3)
-
-# Zusammenführen mit Lücke
 sonder_combined = pd.concat([top3_positiv, top3_negativ]).reset_index(drop=True)
 sonder_combined["Farbe"] = [BLAU, BLAU_HELL, BLAU_HELL, ROT, "#e8a0a0", "#e8a0a0"]
 sonder_combined["Label"] = sonder_combined["Betrag"].apply(lambda x: f"£{x:,.0f}")
@@ -600,13 +597,10 @@ with sp1:
     sub_sp   = "Blau = größte positive Posten · Rot = größte negative Posten" if sprache == "DE" else "Blue = largest positive items · Red = largest negative items"
     st.markdown(f"<div class='chart-card'><div class='chart-title'>{titel_sp}</div><div class='chart-subtitle'>{sub_sp}</div>", unsafe_allow_html=True)
     fig_sp = go.Figure(go.Bar(
-        x=sonder_combined["Betrag"],
-        y=sonder_combined["StockCode"],
-        orientation="h",
+        x=sonder_combined["Betrag"], y=sonder_combined["StockCode"], orientation="h",
         marker_color=sonder_combined["Farbe"].tolist(),
         text=sonder_combined["Label"],
-        textposition="outside",
-        textfont=dict(color="#888880", size=10),
+        textposition="outside", textfont=dict(color="#888880", size=10),
     ))
     fig_sp.add_vline(x=0, line_color="#cccccc", line_width=1)
     fig_sp.update_layout(yaxis=dict(autorange="reversed"))
@@ -619,13 +613,10 @@ with sp2:
     top3_anzahl = sonder_alle.sort_values("Anzahl", ascending=False).head(3)
     st.markdown(f"<div class='chart-card'><div class='chart-title'>{titel_sp2}</div><div class='chart-subtitle'>{sub_sp2}</div>", unsafe_allow_html=True)
     fig_sp2 = go.Figure(go.Bar(
-        x=top3_anzahl["Anzahl"],
-        y=top3_anzahl["StockCode"],
-        orientation="h",
+        x=top3_anzahl["Anzahl"], y=top3_anzahl["StockCode"], orientation="h",
         marker_color=[ORANGE, "#fad9c0", "#fad9c0"],
         text=top3_anzahl["Anzahl"].apply(lambda x: f"{x:,}"),
-        textposition="outside",
-        textfont=dict(color="#888880", size=10),
+        textposition="outside", textfont=dict(color="#888880", size=10),
     ))
     fig_sp2.update_layout(yaxis=dict(autorange="reversed"))
     st.plotly_chart(style(fig_sp2, 320), use_container_width=True)
